@@ -9,6 +9,4 @@ Step-by-step:
 
 1º Login to your subscription (Login-AzureRmAccount).
 2º Invoke the script Get-AzureRmStorageBillableSize -StorageAccountName <storage account name> -ResourceGroupName <RG name> -ContainerName <container name>
-3º ?????
-4º PROFIT!
 
