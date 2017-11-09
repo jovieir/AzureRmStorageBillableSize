@@ -2,13 +2,9 @@
 .SYNOPSIS
     Calculates cost of all blobs in a container or storage account.
 .DESCRIPTION
-    Enumerates all blobs in either one container or one storage account and sums
-    up all costs associated.  This includes all block and page blobs, all metadata
-    on either blobs or containers.  It also includes both committed and uncommitted
-    blocks in the case that a blob is partially uploaded.
- 
-    The details of the calculations can be found in this post:
-    http://blogs.msdn.com/b/windowsazurestorage/archive/2010/07/09/understanding-windows-azure-storage-billing-bandwidth-transactions-and-capacity.aspx
+    This script is based on the available technet script by Windows Azure Product Team @ https://gallery.technet.microsoft.com/scriptcenter/Get-Billable-Size-of-32175802
+
+    It has been reworked to work in ARM, with a few extra features that have been added.
  
 .EXAMPLE
     .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname"
