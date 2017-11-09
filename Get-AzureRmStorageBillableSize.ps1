@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
     Calculates cost of all blobs in a container or storage account.
 .DESCRIPTION
@@ -24,33 +24,50 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ResourceGroupName,
  
-   # The name of the storage container to enumerate.
+    # The name of the storage container to enumerate.
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
-    [string]$ContainerName
+    [string]$ContainerName,
+
+    # The name of the blob to enumerate.
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullOrEmpty()]
+    [string[]]$BlobsNamesArray,
+
+    # Boolean value to authenticate (if not already done)
+    [Parameter(Mandatory = $false)]
+    [ValidateNotNullOrEmpty()]
+    [switch]$Authenticate
 )
  
 # The script has been tested on Powershell 5.0
 Set-StrictMode -Version 3
  
 # Following modifies the Write-Verbose behavior to turn the messages on globally for this session
-$VerbosePreference = "Continue"
+#$VerbosePreference = "Continue"
  
 # Check if Windows Azure Powershell is avaiable
 if ((Get-Module -ListAvailable Azure) -eq $null)
 {
-    throw "Windows Azure Powershell not found! Please install from http://www.windowsazure.com/en-us/downloads/#cmd-line-tools"
+    Write-Output "Windows Azure Powershell not found! Installing Module..."
+    Install-Module AzureRm -Force
 }
 
 <#
 .SYNOPSIS
    Gets the size (in bytes) of a blob.
 .DESCRIPTION
-   Given a blob name, sum up all bytes consumed including the blob itself and any metadata,
-   all committed blocks and uncommitted blocks.
+   Blob consume storage formulas
+   
+   Base value = 124 bytes of overhead (Last Modified Time, Size, Cache-Control, Content-Type, Content-MD5, Lease, etc)
+   Blob Name = NameLength * 2 (Unicode)
+   Metadata (each field) = 3 bytes + Name Length + Length of Value
 
-   Formula reference for calculating size of blob:
-       http://blogs.msdn.com/b/windowsazurestorage/archive/2010/07/09/understanding-windows-azure-storage-billing-bandwidth-transactions-and-capacity.aspx
+   For Block Blobs, add:
+      8 bytes (Block list) + SizeInBytes
+   For Page Blobs, add:
+      (12 bytes * number of nonconsecutive page ranges with data) + SizeInBytes (data in unique pages stored)
+    
 .INPUTS
    $Blob - The blob to calculate the size of.
 .OUTPUTS
@@ -62,26 +79,25 @@ function Get-BlobBytes
         [Parameter(Mandatory=$true)]
         [Microsoft.WindowsAzure.Commands.Common.Storage.ResourceModel.AzureStorageBase]$Blob)
  
-    # Base + blob name
+    
+    # Base values 
     $blobSizeInBytes = 124 + $Blob.Name.Length * 2
  
-    # Get size of metadata
-    $metadataEnumerator = $Blob.ICloudBlob.Metadata.GetEnumerator()
-    while ($metadataEnumerator.MoveNext())
+    # Fetch metadata
+    $BlobMetadata = $Blob.ICloudBlob.Metadata
+    foreach($BlobMetadataValue in $BlobMetadata.Keys)
     {
-        $blobSizeInBytes += 3 + $metadataEnumerator.Current.Key.Length + $metadataEnumerator.Current.Value.Length
+        $blobSizeInBytes += 3 + $BlobMetadataValue.Length + $BlobMetadata[$BlobMetadataValue].Length
     }
- 
-    if ($Blob.BlobType -eq [Microsoft.WindowsAzure.Storage.Blob.BlobType]::BlockBlob)
+     
+    if ($Blob.BlobType -eq "BlockBlob")
     {
         $blobSizeInBytes += 8
-        $Blob.ICloudBlob.DownloadBlockList() | 
-            ForEach-Object { $blobSizeInBytes += $_.Length + $_.Name.Length }
+        $Blob.ICloudBlob.DownloadBlockList() | ForEach-Object { $blobSizeInBytes += $_.Length + $_.Name.Length }
     }
-    else
+    elseif ($Blob.BlobType -eq "PageBlob")
     {
-        $Blob.ICloudBlob.GetPageRanges() | 
-            ForEach-Object { $blobSizeInBytes += 12 + $_.EndOffset - $_.StartOffset }
+        $Blob.ICloudBlob.GetPageRanges() | ForEach-Object { $blobSizeInBytes += 12 + $_.EndOffset - $_.StartOffset }
     }
 
     return $blobSizeInBytes
@@ -129,43 +145,92 @@ function Get-ContainerBytes
     return @{ "containerSize" = $containerSizeInBytes; "blobCount" = $blobCount }
 }
 
+# Validate user input for authentication, if not specified 
+if($Authenticate -eq [Switch]::Present)
+{
+    ## Validate if the user
+    Write-Host "Authentication flag not set, proceeding to authenticate user..." -ForegroundColor Yellow
+    ## Auths the user to sub/tenant
+    Login-AzureRmAccount
+    ## Select the desired subscription
+    Select-AzureRmSubscription | Out-GridView -PassThru -Title "Select an Azure Subscription"
+}
+
 $storageAccount = Get-AzureRmStorageAccount -StorageAccountName $StorageAccountName -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue
 if ($storageAccount -eq $null)
 {
     throw "The storage account specified does not exist in this subscription."
 }
- 
+
+
 # Instantiate a storage context for the storage account.
 $storagePrimaryKey = (Get-AzureRmStorageAccountKey -StorageAccountName $StorageAccountName -ResourceGroupName $ResourceGroupName)[0].Value
 $storageContext = New-AzureStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $storagePrimaryKey
 
-# Get a list of containers to process.
-$containers = New-Object System.Collections.ArrayList
-if ($ContainerName.Length -ne 0)
+##If a specific blob is specified, skip container enumerating
+if(($BlobsNamesArray.Count -ne 0) -and ![string]::IsNullOrWhiteSpace($ContainerName))
 {
-    $container = Get-AzureStorageContainer -Context $storageContext `
-                      -Name $ContainerName -ErrorAction SilentlyContinue | 
-                          ForEach-Object { $containers.Add($_) } | Out-Null
-}
-else
-{
-    Get-AzureStorageContainer -Context $storageContext | ForEach-Object { $containers.Add($_) } | Out-Null
-}
+    #Validates if the container exists
+    $Container = Get-AzureStorageContainer -Context $storageContext -Name $ContainerName -ErrorAction SilentlyContinue
+    if ($Container -eq $null)
+    {
+        throw "The specified container does not exist in this storage account."
+    }
 
-# Calculate size.
-$sizeInBytes = 0
-if ($containers.Count -gt 0)
-{
-    $containers | ForEach-Object { 
-                      $result = Get-ContainerBytes $_.CloudBlobContainer                   
-                      $sizeInBytes += $result.containerSize
-                      Write-Verbose ("Container '{0}' with {1} blobs has a size of {2:F2}MB." -f `
-                          $_.CloudBlobContainer.Name, $result.blobCount, ($result.containerSize / 1MB))
-                      }
-    Write-Output ("Total size calculated for {0} containers is {1:F2}GB." -f $containers.Count, ($sizeInBytes / 1GB))
+    #validates if the blob object exists
+    if($BlobsNamesArray.Count -eq 1)
+    {
+        $BlobName = $BlobsNamesArray[0]
+        $BlobObject = Get-AzureStorageBlob -Blob $BlobName -Container $ContainerName -Context $storageContext
+        if ($BlobObject -eq $null)
+        {
+            throw "The specified blob does not exist in this container."
+        }
+    
+        $SingleBlobSize = Get-BlobBytes -Blob $BlobObject -InformationAction SilentlyContinue
+        Write-Output ("The $BlobName object estimated billable size is " + [Math]::Round($SingleBlobSize/1GB,2) +" GBs")
+    }else{
+        foreach($BlobName in $BlobsNamesArray)
+        {
+            $BlobObject = Get-AzureStorageBlob -Blob $BlobName -Container $ContainerName -Context $storageContext
+            if ($BlobObject -eq $null)
+            {
+                throw "The specified blob does not exist in this container."
+            }
+    
+            $SingleBlobSize = Get-BlobBytes -Blob $BlobObject -InformationAction SilentlyContinue
+            Write-Output ("The $BlobName object estimated billable size is " + [Math]::Round($SingleBlobSize/1GB,2) +" GBs")
+        }
+    }
+}else{
+    # Get a list of containers to process.
+    $containers = New-Object System.Collections.ArrayList
+    if (![string]::IsNullOrWhiteSpace($ContainerName))
+    {
+        $container = Get-AzureStorageContainer -Context $storageContext `
+                          -Name $ContainerName -ErrorAction SilentlyContinue | 
+                              ForEach-Object { $containers.Add($_) } | Out-Null
+    }
+    else
+    {
+        Get-AzureStorageContainer -Context $storageContext | ForEach-Object { $containers.Add($_) } | Out-Null
+    }
 
-}
-else
-{
-    Write-Warning "No containers found to process in storage account '$StorageAccountName'."
+    # Calculate size.
+    $sizeInBytes = 0
+    if ($containers.Count -gt 0)
+    {
+        $containers | ForEach-Object { 
+                          $result = Get-ContainerBytes $_.CloudBlobContainer                   
+                          $sizeInBytes += $result.containerSize
+                          Write-Verbose ("Container '{0}' with {1} blobs has a size of {2:F2}MB." -f `
+                              $_.CloudBlobContainer.Name, $result.blobCount, ($result.containerSize / 1MB))
+                          }
+        Write-Output ("Total size calculated for {0} containers is {1:F2}GB." -f $containers.Count, ($sizeInBytes / 1GB))
+
+    }
+    else
+    {
+        Write-Warning "No containers found to process in storage account '$StorageAccountName'."
+    }
 }
