@@ -14,7 +14,7 @@ Open an elevated PowerShell command and run the following commands for:
 - Container billable summary: 
   - .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername"
 - Blob(s) billable summary: 
-  - .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername" -BlobNamesArray "file1.vhd" 
+  - .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername" -BlobNamesArray "disk1.vhd","disk2.vhd","disk3.vhd"
   
 Parameters:
 
