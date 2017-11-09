@@ -3,9 +3,8 @@
     Calculates cost of all blobs in a container or storage account.
 .DESCRIPTION
     This script is based on the available technet script by Windows Azure Product Team @ https://gallery.technet.microsoft.com/scriptcenter/Get-Billable-Size-of-32175802
-
     It has been reworked to work in ARM, with a few extra features that have been added.
- 
+    Only works with unmanaged disks, as managed disks are billed by allocated size.
 .EXAMPLE
     .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname"
     .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername"
