@@ -11,8 +11,11 @@
     http://blogs.msdn.com/b/windowsazurestorage/archive/2010/07/09/understanding-windows-azure-storage-billing-bandwidth-transactions-and-capacity.aspx
  
 .EXAMPLE
-    .\Get-AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname"
-    .\Get-AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername"
+    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname"
+    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername"
+    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername" -BlobNamesArray "file1.vhd"
+    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername" -BlobNamesArray "file1.vhd","file2.vhd","file3.vhd"
+
 #>
  
 param(
@@ -184,9 +187,9 @@ if(($BlobNamesArray) -and ![string]::IsNullOrWhiteSpace($ContainerName))
     }
 
     #validates if the blob object exists
-    if($BlobsNamesArray.Count -eq 1)
+    if($BlobNamesArray.Count -eq 1)
     {
-        $BlobName = $BlobsNamesArray[0]
+        $BlobName = $BlobNamesArray[0]
         $BlobObject = Get-AzureStorageBlob -Blob $BlobName -Container $ContainerName -Context $storageContext
         if ($BlobObject -eq $null)
         {
