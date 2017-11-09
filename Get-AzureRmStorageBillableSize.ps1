@@ -32,7 +32,7 @@ param(
     # The name of the blob to enumerate.
     [Parameter(Mandatory = $false)]
     [ValidateNotNullOrEmpty()]
-    [string[]]$BlobsNamesArray,
+    [string[]]$BlobNamesArray,
 
     # Boolean value to authenticate (if not already done)
     [Parameter(Mandatory = $false)]
@@ -90,14 +90,24 @@ function Get-BlobBytes
         $blobSizeInBytes += 3 + $BlobMetadataValue.Length + $BlobMetadata[$BlobMetadataValue].Length
     }
      
-    if ($Blob.BlobType -eq "BlockBlob")
+    ## Calculate the Size 
+
+    if($storageAccount.Sku.Tier -eq "Standard") ## Standard
     {
-        $blobSizeInBytes += 8
-        $Blob.ICloudBlob.DownloadBlockList() | ForEach-Object { $blobSizeInBytes += $_.Length + $_.Name.Length }
-    }
-    elseif ($Blob.BlobType -eq "PageBlob")
-    {
-        $Blob.ICloudBlob.GetPageRanges() | ForEach-Object { $blobSizeInBytes += 12 + $_.EndOffset - $_.StartOffset }
+        if ($Blob.BlobType -eq "BlockBlob")
+        {
+            $blobSizeInBytes += 8
+            $Blob.ICloudBlob.DownloadBlockList() | ForEach-Object { $blobSizeInBytes += $_.Length + $_.Name.Length }
+        }
+        elseif (($Blob.BlobType -eq "PageBlob") -and ($Blob.Name.Substring($Blob.Name.LastIndexOf('.'),4) -eq '.vhd'))
+        {
+            $Blob.ICloudBlob.GetPageRanges() | ForEach-Object { $blobSizeInBytes += 12 + $_.EndOffset - $_.StartOffset }
+        }
+    }else{ ## Premium
+        if($Blob.BlobType -eq "PageBlob")
+        {
+            $blobSizeInBytes += $Blob.Length
+        }
     }
 
     return $blobSizeInBytes
@@ -136,11 +146,7 @@ function Get-ContainerBytes
  
     # Calculate size of all blobs.
     $blobCount = 0
-    Get-AzureStorageBlob -Context $storageContext -Container $Container.Name | 
-        ForEach-Object { 
-            $containerSizeInBytes += Get-BlobBytes $_ 
-            $blobCount++
-            }
+    Get-AzureStorageBlob -Context $storageContext -Container $Container.Name | ForEach-Object { $containerSizeInBytes += Get-BlobBytes $_; $blobCount++ }
  
     return @{ "containerSize" = $containerSizeInBytes; "blobCount" = $blobCount }
 }
@@ -168,7 +174,7 @@ $storagePrimaryKey = (Get-AzureRmStorageAccountKey -StorageAccountName $StorageA
 $storageContext = New-AzureStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $storagePrimaryKey
 
 ##If a specific blob is specified, skip container enumerating
-if(($BlobsNamesArray.Count -ne 0) -and ![string]::IsNullOrWhiteSpace($ContainerName))
+if(($BlobNamesArray) -and ![string]::IsNullOrWhiteSpace($ContainerName))
 {
     #Validates if the container exists
     $Container = Get-AzureStorageContainer -Context $storageContext -Name $ContainerName -ErrorAction SilentlyContinue
@@ -190,7 +196,7 @@ if(($BlobsNamesArray.Count -ne 0) -and ![string]::IsNullOrWhiteSpace($ContainerN
         $SingleBlobSize = Get-BlobBytes -Blob $BlobObject -InformationAction SilentlyContinue
         Write-Output ("The $BlobName object estimated billable size is " + [Math]::Round($SingleBlobSize/1GB,2) +" GBs")
     }else{
-        foreach($BlobName in $BlobsNamesArray)
+        foreach($BlobName in $BlobNamesArray)
         {
             $BlobObject = Get-AzureStorageBlob -Blob $BlobName -Container $ContainerName -Context $storageContext
             if ($BlobObject -eq $null)
@@ -225,9 +231,13 @@ if(($BlobsNamesArray.Count -ne 0) -and ![string]::IsNullOrWhiteSpace($ContainerN
                           $sizeInBytes += $result.containerSize
                           Write-Verbose ("Container '{0}' with {1} blobs has a size of {2:F2}MB." -f `
                               $_.CloudBlobContainer.Name, $result.blobCount, ($result.containerSize / 1MB))
+        
                           }
-        Write-Output ("Total size calculated for {0} containers is {1:F2}GB." -f $containers.Count, ($sizeInBytes / 1GB))
-
+        switch($storageAccount.Sku.Tier)
+        {
+            "Standard" { Write-Output ("Total size calculated for {0} containers is {1:F2}GB." -f $containers.Count, ($sizeInBytes / 1GB)) }
+            "Premium"  { Write-Host "Premium Storage detected - Page Blobs are billed for their full allocated size!" -ForegroundColor Yellow ; Write-Output ("Total size calculated for {0} containers is {1:F2}GB." -f $containers.Count, ($sizeInBytes / 1GB)) }
+        }
     }
     else
     {
