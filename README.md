@@ -1,5 +1,5 @@
 # AzureRmStorageBillableSize
-PowerShell script to determine the billable size for a storage account or a container inside a storage account.
+PowerShell script that determines the billable size for a storage account, a container inside a storage account, or specific page blobs.
 
 Based on the official existing version in Classic - https://gallery.technet.microsoft.com/scriptcenter/Get-Billable-Size-of-32175802?ranMID=24542&ranEAID=je6NUbpObpQ&ranSiteID=je6NUbpObpQ-vcVQnsHe8MvUwgCu8R7wLw&tduid=(0d3c2c955e1b5e0a4c3ae0e5f37f838e)(256380)(2459594)(je6NUbpObpQ-vcVQnsHe8MvUwgCu8R7wLw)()
 
