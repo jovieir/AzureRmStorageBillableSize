@@ -1,15 +1,22 @@
 # AzureRmStorageBillableSize
 PowerShell script that determines the billable size for a storage account, a container inside a storage account, or specific page blobs.
 
-Based on the official existing version in Classic - https://gallery.technet.microsoft.com/scriptcenter/Get-Billable-Size-of-32175802?ranMID=24542&ranEAID=je6NUbpObpQ&ranSiteID=je6NUbpObpQ-vcVQnsHe8MvUwgCu8R7wLw&tduid=(0d3c2c955e1b5e0a4c3ae0e5f37f838e)(256380)(2459594)(je6NUbpObpQ-vcVQnsHe8MvUwgCu8R7wLw)()
+Based on the official existing version in Classic - https://gallery.technet.microsoft.com/scriptcenter/Get-Billable-Size-of-32175802
 
-Reworked to work on ARM.
+Reworked to work on ARM, with a few new features.
 
-Instructions:
+-- Instructions:
 
-- Open an elevated PowerShell command and run .\AzureRmStorageBillableSize.ps1 -StorageAccountName <SA Name> -ResourceGroupName <RG Name>
+Open an elevated PowerShell command and run the following commands for:
+
+- Storage Account billable summary: 
+  .\AzureRmStorageBillableSize.ps1 -StorageAccountName <SA Name> -ResourceGroupName <RG Name>
+- Container billable summary: 
+    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername"
+- Blob(s) billable summary: 
+    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername" -BlobNamesArray "file1.vhd" 
   
-The script takes the following parameters:
+Parameters:
 
 - StorageAccountName <string> [Required]
   :The name of the storage account
