@@ -201,10 +201,12 @@ if(($BlobNamesArray) -and ![string]::IsNullOrWhiteSpace($ContainerName))
             {
                 throw "The specified blob does not exist in this container."
             }
-    
-            $SingleBlobSize = Get-BlobBytes -Blob $BlobObject -InformationAction SilentlyContinue
-            Write-Output ("The $BlobName object estimated billable size is " + [Math]::Round($SingleBlobSize/1GB,2) +" GBs")
+            
+            $SingleBlobSizeinBytes = Get-BlobBytes -Blob $BlobObject -InformationAction SilentlyContinue
+            Write-Output ("The $BlobName object estimated billable size is " + [Math]::Round($SingleBlobSizeinBytes/1GB,2) +" GBs")
+            $TotalBlobSizeinBytes += $SingleBlobSizeinBytes
         }
+        Write-Output ("The Total Size for "+$BlobNamesArray.Count+" is: "+ [Math]::Round($TotalBlobSizeinBytes/1GB,2) +" GBs");
     }
 }else{
     # Get a list of containers to process.
