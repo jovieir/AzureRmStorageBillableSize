@@ -5,9 +5,19 @@ Based on the official existing version in Classic - https://gallery.technet.micr
 
 Reworked to work on ARM.
 
-Step-by-step:
+Instructions:
 
-1º Login to your subscription (Login-AzureRmAccount).
+- Open an elevated PowerShell command and run .\AzureRmStorageBillableSize.ps1 -StorageAccountName <SA Name> -ResourceGroupName <RG Name>
+  
+The script takes the following parameters:
 
-2º Invoke the script Get-AzureRmStorageBillableSize -StorageAccountName <storage account name> -ResourceGroupName <RG name> -ContainerName <container name>.
-
+- StorageAccountName <string> [Required]
+  :The name of the storage account
+- ResourceGroupName <string> [Required]
+  :The name of the resource group where the storage account resides.
+- ContainerName <string> [Optional]
+  :The name of the container. If specified, the script will only calculate the size of the container and the blobs within it.
+- BlobNames <string array> [Optional]
+  :The name(s) of the Page Blobs. If specified, the script will only calculate the size of the blobs. [ContainerName parameter is required with this parameter]
+- Authenticated <switch> [Optional]
+  :If the user is not authenticated, it'll be prompted to do so and choose a subscription.
