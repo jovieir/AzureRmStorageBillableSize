@@ -10,11 +10,11 @@ Reworked to work on ARM, with a few new features.
 Open an elevated PowerShell command and run the following commands for:
 
 - Storage Account billable summary: 
-  .\AzureRmStorageBillableSize.ps1 -StorageAccountName <SA Name> -ResourceGroupName <RG Name>
+  -  .\AzureRmStorageBillableSize.ps1 -StorageAccountName <SA Name> -ResourceGroupName <RG Name>
 - Container billable summary: 
-    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername"
+  - .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername"
 - Blob(s) billable summary: 
-    .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername" -BlobNamesArray "file1.vhd" 
+  - .\AzureRmStorageBillableSize.ps1 -StorageAccountName "mystorageaccountname" -ResourceGroupName "RG name" -ContainerName "mycontainername" -BlobNamesArray "file1.vhd" 
   
 Parameters:
 
